@@ -1,7 +1,8 @@
+import enum
 import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
-from sqlalchemy import DateTime, func, String, Uuid, Boolean
+from sqlalchemy import DateTime, func, String, Uuid, Boolean, Enum
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 from email_validator import validate_email, EmailNotValidError
 
@@ -14,6 +15,13 @@ if TYPE_CHECKING:
     from .cart import Cart
     from .order import Order
     from .library import Library
+    from .author import Author
+
+
+class UserRole(str, enum.Enum):
+    USER = "user"
+    AUTHOR = "author"
+    ADMIN = "admin"
 
 
 class User(Base):
@@ -42,11 +50,10 @@ class User(Base):
         nullable=False
     )
 
-    role: Mapped[str] = mapped_column(
-        String(50),
+    role: Mapped[UserRole] = mapped_column(
+        Enum(UserRole),
         nullable=False,
-        default="user",
-        server_default="user"
+        default=UserRole.USER
     )
 
     is_verified: Mapped[bool] = mapped_column(
@@ -59,6 +66,12 @@ class User(Base):
         Boolean,
         default=False,
         nullable=False
+    )
+
+    author: Mapped["Author | None"] = relationship(
+        "Author",
+        back_populates="user",
+        uselist=False
     )
 
     created_at: Mapped[datetime] = mapped_column(

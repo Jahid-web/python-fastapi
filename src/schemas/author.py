@@ -16,6 +16,7 @@ class AuthorUpdateSchema(BaseModel):
 class AuthorResponseSchema(BaseModel):
     id: uuid.UUID
     name: str
+    user_id: uuid.UUID
     bio: str | None
 
     model_config = ConfigDict(from_attributes=True)

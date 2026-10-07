@@ -111,6 +111,22 @@ async def statement_error_handler(
         req: Request,
         exc: StatementError
 ):
+    original_exception = exc.orig
+
+
+    if isinstance(original_exception, AppException):
+
+        return JSONResponse(
+            status_code=original_exception.status_code,
+            content={
+                "success": False,
+                "error": {
+                    "code": original_exception.error_code,
+                    "message": original_exception.message,
+                    "details": original_exception.details,
+                },
+            },
+        )
     return JSONResponse(
         status_code=status.HTTP_400_BAD_REQUEST,
         content= {
@@ -118,7 +134,7 @@ async def statement_error_handler(
             "error": {
                 "code": "DATABASE_STATEMENT_ERROR",
                 "message": "Invalid database operation",
-                "details": {}
+                "details": {"original_error": str(original_exception)}
             }
         }
     )
@@ -146,13 +162,18 @@ def register_all_exceptions_handlers(
         app: FastAPI
 ):
     app.add_exception_handler(
+        RequestValidationError,
+        validation_exception_handler
+    )
+
+    app.add_exception_handler(
         AppException,
         app_exception_handler
     )
 
     app.add_exception_handler(
-        RequestValidationError,
-        validation_exception_handler
+        StatementError,
+        statement_error_handler
     )
 
     app.add_exception_handler(
@@ -165,11 +186,6 @@ def register_all_exceptions_handlers(
         no_result_found_handler
     )
 
-    app.add_exception_handler(
-        StatementError,
-        statement_error_handler
-    )
-    
     app.add_exception_handler(
         OperationalError,
         operational_error_handler

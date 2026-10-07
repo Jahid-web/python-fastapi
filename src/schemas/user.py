@@ -1,17 +1,35 @@
 import uuid
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+
+from src.models.user import UserRole
 
 class UserCreateSchema(BaseModel):
     email: EmailStr
-    name: str = Field(min_length=3, max_length=15)
-    password: str = Field(min_length=3)
+    name: str 
+    password: str
+    role: UserRole = UserRole.USER
+
+    @field_validator("name")
+    @classmethod
+    def name_validator(cls, value:str):
+        value = value.strip()
+        if not value:
+            raise ValueError("User name is required.")
+        return value
+    
+    @field_validator("password")
+    @classmethod
+    def password_validator(cls, value:str):
+        if not 3 <= len(value) <= 6:
+            raise ValueError("Password must be between 3 and 6 characters.")
+        return value
 
 class UserResponseSchema(BaseModel):
     id: uuid.UUID
     email: EmailStr
     name: str
-    role: str
+    role: UserRole
     is_active: bool
     is_verified: bool
     created_at: datetime

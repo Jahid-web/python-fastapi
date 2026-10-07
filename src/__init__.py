@@ -5,6 +5,7 @@ from src.core.middleware import register_middleware
 from src.routes.auth import auth_router
 from src.routes.book import book_router
 from src.routes.author import author_router
+from src.routes.admin import admin_router
 
 
 
@@ -34,5 +35,6 @@ register_all_exceptions_handlers(app)
 register_middleware(app)
 
 app.include_router(auth_router, prefix=f"{version_prefix}/auth", tags=["auth"])
+app.include_router(admin_router, prefix=f"{version_prefix}/admin", tags=["admin"])
 app.include_router(book_router, prefix=f"{version_prefix}/book", tags=["book"])
 app.include_router(author_router, prefix=f"{version_prefix}/author", tags=["author"])

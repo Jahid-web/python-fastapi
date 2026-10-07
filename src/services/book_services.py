@@ -14,7 +14,7 @@ class BookService:
             
             new_book = Book(**book_data_dict)
     
-            new_book.user_id = user_id
+            new_book.author_id = user_id
             session.add(new_book)
     
             await session.commit()

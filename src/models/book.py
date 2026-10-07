@@ -2,11 +2,10 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 from sqlalchemy import String, func, Integer, ForeignKey, Text, Uuid, Numeric, DateTime, UniqueConstraint
-from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import TYPE_CHECKING
 
 from src.db.main import Base
-from src.core.exceptions import ValidationException
 
 
 if TYPE_CHECKING:
@@ -120,31 +119,3 @@ class Book(Base):
         back_populates="book",
         cascade="all, delete-orphan",
     )
-
-
-    @validates("title")
-    def validate_title(self, key, value):
-        if not value or not value.strip():
-            raise ValidationException(
-                message="Book title must be required!",
-                details="validation_error"
-            )
-        return value.strip()
-    
-    @validates("price")
-    def validate_price(self, key, value):
-        if value < 0:
-            raise ValidationException(
-                message="Book price cannot be negative.",
-                details="validation_error"
-            )
-        return value
-    
-    @validates("stock")
-    def validate_qty(self, key, value):
-        if value < 0:
-            raise ValidationException(
-                message="Book quantity cannot be negative.",
-                details="validation_error"
-            )
-        return value

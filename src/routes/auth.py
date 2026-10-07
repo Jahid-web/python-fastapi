@@ -1,11 +1,12 @@
 from fastapi import APIRouter, Depends, status
 from fastapi.responses import JSONResponse
+from fastapi.encoders import jsonable_encoder
 from sqlalchemy.ext.asyncio.session import AsyncSession
 from datetime import timedelta
 
 from src.db.main import get_session
 from src.schemas.user import UserCreateSchema, UserResponseSchema, LoginRequestSchema
-from src.core.security import create_access_token, verify_password, hash_password
+from src.core.security import create_access_token, verify_password
 from src.core.exceptions import ConflictException, UnAuthorizedException
 from src.services.user_services import UserService
 
@@ -32,10 +33,12 @@ async def create_user(user_data: UserCreateSchema, session: AsyncSession = Depen
     new_user = await user_service.create_user_account(user_data, session)
 
     return JSONResponse(
-        content={
-            "message": "Accounted created successfully.",
-            "user": new_user
-        }
+       content=jsonable_encoder(
+           {
+                "message": "Accounted created successfully.",
+                "user": new_user
+            }
+        )
     )
 
 

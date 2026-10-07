@@ -1,6 +1,6 @@
 import uuid
-from sqlalchemy import String, Text, Uuid
-from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
+from sqlalchemy import String, Text, Uuid, ForeignKey
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import TYPE_CHECKING
 
 from src.db.main import Base
@@ -8,6 +8,7 @@ from src.core.exceptions import ValidationException
 
 if TYPE_CHECKING:
     from .book import Book
+    from .user import User
 
 
 class Author(Base):
@@ -31,18 +32,21 @@ class Author(Base):
         nullable=True
     )
 
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id"),
+        unique=True,
+        nullable=False,
+        index=True
+    )
+
     # relation
+    user: Mapped["User"] = relationship(
+        "User",
+        back_populates="author"
+    )
+
     books: Mapped[list["Book"]] = relationship(
         "Book",
         back_populates="author"
     )
 
-
-    @validates("name")
-    def validate_name(self, key, value):
-        if not value or not value.strip():
-            raise ValidationException(
-                message="Author name is required!",
-                details="validation_error"
-            )
-        return value.strip()
