@@ -60,7 +60,8 @@ async def user_login(login_data: LoginRequestSchema, session:AsyncSession=Depend
         if password_valid:
             token_data = {
                 "user_id": str(user.id),
-                "email": user.email
+                "email": user.email,
+                "role": user.role
             }
 
             access_token = create_access_token(token_data)
@@ -75,8 +76,7 @@ async def user_login(login_data: LoginRequestSchema, session:AsyncSession=Depend
                     "message": "Login successfully.",
                     "access_token": access_token,
                     "refresh_token": refresh_token,        
-                    "token_type": "Bearer",
-                    "user_data": token_data
+                    "user_data": token_data                    
                 }
             )
     

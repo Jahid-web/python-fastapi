@@ -1,6 +1,8 @@
 import uuid
 from pydantic import BaseModel, ConfigDict, Field
 
+from src.schemas.book import BookResponseSchema
+
 
 class AuthorCreateSchema(BaseModel):
     name: str = Field(
@@ -17,6 +19,7 @@ class AuthorResponseSchema(BaseModel):
     id: uuid.UUID
     name: str
     user_id: uuid.UUID
-    bio: str | None
+    bio: str | None = None
+    books: BookResponseSchema | None = None
 
     model_config = ConfigDict(from_attributes=True)

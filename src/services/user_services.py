@@ -1,5 +1,6 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio.session import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from src.models.user import User
 from src.models.author import Author
@@ -26,14 +27,14 @@ class UserService:
         new_user = User(**user_data_dict,
                         password = hash_password(password))
 
+
         session.add(new_user)
-
         await session.flush()
-
+     
         if new_user.role == UserRole.AUTHOR:
             new_author = Author(
-                name=new_user.name,
                 user_id=new_user.id,
+                name=new_user.name,
             )
 
             session.add(new_author)
@@ -45,7 +46,9 @@ class UserService:
 
     async def get_all_users(self, session: AsyncSession):
         try:
-            result = await session.execute(select(User))
+            result = await session.execute(
+                select(User).options(selectinload(User.author))
+                )
             users = result.scalars().all()
             return users
         except Exception:
@@ -55,9 +58,8 @@ class UserService:
     async def get_authors(self, session: AsyncSession):
         try:
             result = await session.execute(
-                select(Author)
+                select(Author).options(selectinload(Author.books))
             )
-
             authors = result.scalars().all()
             return authors
 

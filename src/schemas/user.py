@@ -3,6 +3,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from src.models.user import UserRole
+from src.schemas.author import AuthorResponseSchema
 
 class UserCreateSchema(BaseModel):
     email: EmailStr
@@ -34,6 +35,7 @@ class UserResponseSchema(BaseModel):
     is_verified: bool
     created_at: datetime
     updated_at: datetime
+    author: AuthorResponseSchema | None = None
 
     model_config = ConfigDict(from_attributes=True)
 

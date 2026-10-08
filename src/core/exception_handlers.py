@@ -67,6 +67,11 @@ async def sqlalchemy_integrity_error_handler(
     # else:
     #     field = None
     #     msg = "Database constraint violation."
+
+    print("######################")    
+    print(exc.orig)
+    print(exc)
+
     constraint_name = None
 
     # postgres

@@ -3,6 +3,8 @@ from datetime import datetime
 from decimal import Decimal
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from src.schemas.category import CategoryResponseSchema
+
 
 class BookCreateSchema(BaseModel):
     title: str
@@ -11,6 +13,7 @@ class BookCreateSchema(BaseModel):
     file_key: str | None = Field(default=None)
     cover_key: str | None = Field(default=None)
     description: str | None = Field(default=None)
+    category_ids: list[uuid.UUID] = Field(default_factory=list)
 
     @field_validator("title")
     @classmethod
@@ -58,6 +61,7 @@ class BookResponseSchema(BaseModel):
     description: str | None
     created_at: datetime
     updated_at: datetime
+    categories: list[CategoryResponseSchema] = []
 
     model_config = ConfigDict(from_attributes=True)
 
