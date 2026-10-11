@@ -6,6 +6,22 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from src.schemas.category import CategoryResponseSchema
 
 
+class BookSchema(BaseModel):
+    id: uuid.UUID
+    title: str
+    price: Decimal
+    stock: int
+    author_id: uuid.UUID
+    file_key: str | None
+    cover_key: str | None
+    description: str
+    created_at: datetime
+    updated_at: datetime
+    # category_ids: list[uuid.UUID] = Field(default_factory=list)
+    categories: list[CategoryResponseSchema] = []
+    
+
+
 class BookCreateSchema(BaseModel):
     title: str
     price: Decimal 
@@ -42,6 +58,7 @@ class BookCreateSchema(BaseModel):
         return value
 
 class BookUpdateSchema(BaseModel):
+    id: uuid.UUID
     title: str
     price: Decimal = Field(ge=0, decimal_places=2, description="book price")
     stock: int = Field(default=0, ge=0)
@@ -49,6 +66,7 @@ class BookUpdateSchema(BaseModel):
     file_key: str | None = Field(default=None)
     cover_key: str | None = Field(default=None)
     description: str | None = Field(default=None)
+    category_ids: list[uuid.UUID] = Field(default_factory=list)
 
 class BookResponseSchema(BaseModel):
     id: uuid.UUID

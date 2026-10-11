@@ -69,12 +69,12 @@ class BookService:
             raise
 
 
-    async def get_book_by_title(self, title:str, session: AsyncSession):
+    async def get_book_by_id(self, id:str, session: AsyncSession):
         try:
             result = await session.execute(
-                select(Book).where(
-                    Book.title == title
-                )
+                select(Book)
+                .options(selectinload(Book.categories))
+                .where(Book.id == id)
             )
 
             book = result.scalar_one_or_none()
@@ -83,7 +83,6 @@ class BookService:
         except Exception:
             await session.rollback()
             raise
-
 
 
     async def get_all_book(self, session: AsyncSession):
@@ -95,4 +94,64 @@ class BookService:
             return books
 
         except Exception:
+            raise
+
+
+    async def update_book(self, book_id:str, book_data:BookUpdateSchema, session: AsyncSession):
+        try:
+            book_to_update = await self.get_book_by_id(book_id, session)
+
+            if book_to_update is not None:
+                update_data_dict = book_data.model_dump(exclude={"id", "category_ids"},exclude_unset=True)
+
+                for k, v in update_data_dict.items():
+                    setattr(book_to_update, k, v)
+
+                    if "category_ids" in book_data.model_fields_set:
+                        result = await session.execute(
+                            select(Category).where(
+                                Category.id.in_(book_data.category_ids)
+                            )
+                        )
+
+                        categories = result.scalars().all()
+
+                        if len(categories) != len(set(book_data.category_ids)):
+                            raise ValueError("One or more categories do not exist")
+
+                        book_to_update.categories = categories
+
+                await session.commit()
+
+                update_data = await session.execute(
+                    select(Book).options(
+                        selectinload(Book.categories)
+                    ).where(Book.id == book_to_update.id)
+                )
+
+                book = update_data.scalar_one_or_none()
+                return book
+
+            else:
+                None
+
+        except Exception:
+            await session.rollback()
+            raise
+
+    async def delete_book(self, book_id: str, session: AsyncSession):
+        try:
+            book = await self.get_book_by_id(book_id, session)
+
+            if book is not None:
+                await session.delete(book)
+                await session.commit()
+
+                return True
+
+            else:
+                None
+
+        except Exception:
+            await session.rollback()
             raise

@@ -83,3 +83,6 @@ async def user_login(login_data: LoginRequestSchema, session:AsyncSession=Depend
     raise UnAuthorizedException(
         message="Invalid email or password."
     )
+
+
+# @auth_router.patch("/{user}")

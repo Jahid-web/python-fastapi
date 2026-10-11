@@ -6,8 +6,8 @@ from fastapi.encoders import jsonable_encoder
 from src.db.main import get_session
 from src.services.user_services import UserService
 from src.services.category_services import CategoryService
-from src.core.exceptions import UnAuthorizedException, ConflictException, ForbiddenException
-from src.schemas.user import UserCreateSchema, UserResponseSchema
+from src.core.exceptions import UnAuthorizedException, ConflictException, NotFoundException
+from src.schemas.user import UserResponseSchema
 from src.schemas.category import CategoryCreateSchema, CategoryResponseSchema, CategoryUpdateSchema
 from src.utils.dependencies import RoleChecker
 from src.models.user import UserRole
@@ -17,10 +17,10 @@ from src.schemas.author import AuthorResponseSchema
 admin_router = APIRouter()
 user_service = UserService()
 category_service = CategoryService()
-role_checker = Depends(RoleChecker(UserRole.ADMIN))
+role_checker = Depends(RoleChecker([UserRole.ADMIN]))
 access_token_bearer = AccessTokenBearer()
 
-@admin_router.get("/", response_model=list[UserResponseSchema], status_code=status.HTTP_200_OK, dependencies=[role_checker])
+@admin_router.get("/users", response_model=list[UserResponseSchema], status_code=status.HTTP_200_OK, dependencies=[role_checker])
 async def get_all_users(session: AsyncSession = Depends(get_session)):
     users = await user_service.get_all_users(session)
 
@@ -35,8 +35,7 @@ async def get_authors_only(session: AsyncSession = Depends(get_session)):
 
 @admin_router.post("/category", response_model=CategoryResponseSchema, status_code=status.HTTP_201_CREATED, dependencies=[role_checker])
 async def create_category(cat_data: CategoryCreateSchema, session: AsyncSession = Depends(get_session), token_datils: dict = Depends(access_token_bearer)):
-    role = token_datils.get("user")["role"]
-
+    
     # if role != UserRole.ADMIN:
     #     raise ForbiddenException(
     #         message="You are not permitted to do this action.",
@@ -72,4 +71,25 @@ async def get_all_category(session: AsyncSession = Depends(get_session)):
             "categories": categories
         })
     ) 
-        
+
+@admin_router.delete("/{author_id}", status_code=status.HTTP_200_OK, dependencies=[role_checker])
+async def delete_author(author_id:str, session: AsyncSession = Depends(get_session), token_details: dict = Depends(access_token_bearer)):
+    role = token_details.get("user")["role"]
+
+    if role != UserRole.ADMIN:
+        raise UnAuthorizedException(
+            message="You are not allowed to perform this action."
+        )
+
+    result = await user_service.delete_author(author_id, session)
+
+    if result is False:
+        raise NotFoundException(
+            message="No author found to delete.",
+            details={}
+        )
+
+    return {
+        "success": True,
+        "message": "Author deleted successfully."
+    }

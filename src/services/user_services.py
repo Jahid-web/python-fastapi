@@ -4,9 +4,12 @@ from sqlalchemy.orm import selectinload
 
 from src.models.user import User
 from src.models.author import Author
-from src.schemas.user import UserCreateSchema
+from src.models.book import Book
+from src.schemas.user import UserCreateSchema, UserUpdateSchema
 from src.core.security import hash_password
 from src.models.user import UserRole
+from src.models.author import Author
+from src.schemas.author import AuthorCreateSchema, AuthorUpdateSchema
 
 class UserService:
     async def get_user_by_email(self, email:str, session: AsyncSession):
@@ -18,7 +21,6 @@ class UserService:
 
         user = result.scalar_one_or_none()
         return user
-
 
     async def create_user_account(self, data: UserCreateSchema, session: AsyncSession):
         user_data_dict = data.model_dump()
@@ -43,6 +45,21 @@ class UserService:
         await session.refresh(new_user)
         return new_user
 
+    async def update_me(self, user_email: str, data:UserUpdateSchema, session: AsyncSession):
+        try:
+            user = await self.get_user_by_email(user_email, session)
+
+            if user is not None:
+                user_dict = data.model_dump()
+
+                for k, v in user_dict.items():
+                    setattr(user, k, v)
+
+            await session.commit()
+            return user
+        except Exception:
+            await session.rollback()
+            raise
 
     async def get_all_users(self, session: AsyncSession):
         try:
@@ -58,10 +75,71 @@ class UserService:
     async def get_authors(self, session: AsyncSession):
         try:
             result = await session.execute(
-                select(Author).options(selectinload(Author.books))
+                select(Author).options(selectinload(Author.books).selectinload(Book.categories))
             )
             authors = result.scalars().all()
             return authors
+
+        except Exception:
+            await session.rollback()
+            raise
+
+    async def get_author_by_id(self, author_id:str, session: AsyncSession):
+        try:
+            result = await session.execute(
+                select(Author).where(
+                    Author.id == author_id
+                )
+            )
+            author = result.scalar_one_or_none()
+            return author
+        except Exception:
+            await session.rollback()
+            raise
+
+    async def create_author(self, author_data:AuthorCreateSchema, session: AsyncSession):
+            try:
+                author_data_dict = author_data.model_dump()
+                
+                new_author = Author(**author_data_dict)
+    
+                session.add(new_author)
+                await session.commit()
+                return new_author
+           
+            except Exception:
+                await session.rollback()
+                raise
+
+    async def update_author(self, author_id:str, author_data:AuthorUpdateSchema, session: AsyncSession):
+        try:
+            author = await self.get_author_by_id(author_id, session)
+
+            if author is not None:
+                author_dict = author_data.model_dump()
+
+                for k, v in author_dict.items():
+                    setattr(author, k, v)
+
+                await session.commit()
+                return author
+            else:
+                return None
+        
+        except Exception:
+            await session.rollback()
+            raise
+
+    async def delete_author(self, author_id:str, session: AsyncSession):
+        try:
+            author = await self.get_author_by_id(author_id, session)
+
+            if author is not None:
+                await session.delete(author)
+                await session.commit()
+                return True
+            else:
+                return None
 
         except Exception:
             await session.rollback()

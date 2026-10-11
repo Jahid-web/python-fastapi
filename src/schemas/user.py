@@ -26,6 +26,12 @@ class UserCreateSchema(BaseModel):
             raise ValueError("Password must be between 3 and 6 characters.")
         return value
 
+
+class UserAuthorResponseSchema(BaseModel):
+    id: uuid.UUID
+    name: str
+    user_id: uuid.UUID
+    bio: str | None = None
 class UserResponseSchema(BaseModel):
     id: uuid.UUID
     email: EmailStr
@@ -35,7 +41,7 @@ class UserResponseSchema(BaseModel):
     is_verified: bool
     created_at: datetime
     updated_at: datetime
-    author: AuthorResponseSchema | None = None
+    author: UserAuthorResponseSchema | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -54,3 +60,8 @@ class RefreshTokenRequestSchema(BaseModel):
 
 class MessageResponseSchema(BaseModel):
     message: str
+
+class UserUpdateSchema(BaseModel):
+    id:uuid.UUID
+    email: EmailStr
+    name: str
