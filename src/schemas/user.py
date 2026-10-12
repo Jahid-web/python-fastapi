@@ -45,6 +45,12 @@ class UserResponseSchema(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+class UserGetResponseSchema(BaseModel):
+    id: uuid.UUID
+    email: EmailStr
+    name: str
+    is_verified: bool
+
 class LoginRequestSchema(BaseModel):
     email: EmailStr
     password: str = Field(min_length=3)
@@ -65,3 +71,11 @@ class UserUpdateSchema(BaseModel):
     id:uuid.UUID
     email: EmailStr
     name: str
+
+class UserPasswordResetSchema(BaseModel):
+    email: str
+
+class UserPasswordResetConfirm(BaseModel):
+    new_password: str
+    confirm_new_password: str
+

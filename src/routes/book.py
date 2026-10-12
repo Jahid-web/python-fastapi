@@ -1,7 +1,9 @@
-from fastapi import APIRouter, status, Depends
+import json
+from fastapi import APIRouter, status, Depends, UploadFile, File, Form, HTTPException
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio.session import AsyncSession
 from fastapi.encoders import jsonable_encoder
+from pydantic import ValidationError
 
 from src.db.main import get_session
 from src.core.exceptions import NotFoundException, ForbiddenException
@@ -64,8 +66,18 @@ async def get_all_book(session: AsyncSession = Depends(get_session), _:dict = De
     )
 
 @book_router.patch("/{book_id}", response_model=BookSchema, dependencies=[role_checker], status_code=status.HTTP_201_CREATED)
-async def update_book(book_id:str, book_data: BookUpdateSchema, session: AsyncSession = Depends(get_session)):
-    updated_book = await book_service.update_book(book_id, book_data, session)
+async def update_book(book_id:str, book_data: str = Form(), session: AsyncSession = Depends(get_session), cover_key: UploadFile | None = File(None), file_key: UploadFile | None = File(None)):
+    try:
+    
+        parse_data = BookUpdateSchema.model_validate_json(book_data)
+
+    except (ValidationError, ValueError) as exc:       
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Invalid book_data JSON or fields",
+        ) from exc
+
+    updated_book = await book_service.update_book(book_id, parse_data, session, cover_key, file_key)
 
     if updated_book is None:
         raise NotFoundException(

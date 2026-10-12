@@ -1,5 +1,6 @@
 import uuid
 import jwt
+from typing import Any
 from datetime import datetime, timedelta, timezone
 from pwdlib import PasswordHash
 from src.core.config import Config
@@ -48,4 +49,32 @@ def decode_token(token:str) -> dict:
             message="Invalid or expired token."
         )
     return token_data
+
+serializer = URLSafeTimedSerializer(
+    secret_key=Config.JWT_SECRETE_KEY, salt="emaill-configuration"
+)
+
+def create_url_safe_token(data: dict):
+    token = serializer.dumps(data)
+    return token
+
+def decode_url_safe_token(token: str) -> dict[str, Any]:
+    try:
+        token_data = serializer.loads(token, max_age= 60 * 60 * 24)
+
+        if not token_data:
+            raise UnAuthorizedException(
+                message="Invalid verification token."
+            )
+        return token_data
+
+    except SignatureExpired:
+        raise UnAuthorizedException(
+            message="Verification link has expired."
+        )
+
+    except BadSignature:
+        raise UnAuthorizedException(
+            message="Invalid verification token"
+        )
 

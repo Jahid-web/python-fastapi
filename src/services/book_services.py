@@ -1,12 +1,14 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio.session import AsyncSession
 from sqlalchemy.orm import selectinload
+from fastapi import UploadFile
 
 from src.models.book import Book
 from src.models.author import Author
 from src.core.exceptions import DatabaseException, NotFoundException
 from src.schemas.book import BookCreateSchema, BookUpdateSchema
 from src.models.category import Category
+from src.utils.uploads import uploads
 
 
 class BookService:
@@ -97,29 +99,37 @@ class BookService:
             raise
 
 
-    async def update_book(self, book_id:str, book_data:BookUpdateSchema, session: AsyncSession):
+    async def update_book(self, book_id:str, book_data:BookUpdateSchema, session: AsyncSession, cover_key: UploadFile | None = None, file_key: UploadFile | None = None):
         try:
             book_to_update = await self.get_book_by_id(book_id, session)
 
             if book_to_update is not None:
-                update_data_dict = book_data.model_dump(exclude={"id", "category_ids"},exclude_unset=True)
+                update_data_dict = book_data.model_dump(exclude={"id", "category_ids", "cover_key", "file_key"}, exclude_unset=True)
 
                 for k, v in update_data_dict.items():
                     setattr(book_to_update, k, v)
 
-                    if "category_ids" in book_data.model_fields_set:
-                        result = await session.execute(
-                            select(Category).where(
-                                Category.id.in_(book_data.category_ids)
-                            )
+                if cover_key is not None:
+                    upload_file = await uploads(cover_key)
+                    book_to_update.cover_key = upload_file["filename"]
+
+                if file_key is not None:
+                    upload_file = await uploads(file_key)
+                    book_to_update.file_key = upload_file["filename"]
+
+                if "category_ids" in book_data.model_fields_set:
+                    result = await session.execute(
+                        select(Category).where(
+                            Category.id.in_(book_data.category_ids)
                         )
+                    )
 
-                        categories = result.scalars().all()
+                    categories = result.scalars().all()
 
-                        if len(categories) != len(set(book_data.category_ids)):
-                            raise ValueError("One or more categories do not exist")
+                    if len(categories) != len(set(book_data.category_ids)):
+                        raise ValueError("One or more categories do not exist")
 
-                        book_to_update.categories = categories
+                    book_to_update.categories = categories
 
                 await session.commit()
 
@@ -138,6 +148,7 @@ class BookService:
         except Exception:
             await session.rollback()
             raise
+
 
     async def delete_book(self, book_id: str, session: AsyncSession):
         try:

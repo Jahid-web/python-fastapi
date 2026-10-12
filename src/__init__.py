@@ -1,4 +1,6 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile, File
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 
 from src.core.exception_handlers import register_all_exceptions_handlers
 from src.core.middleware import register_middleware
@@ -7,7 +9,8 @@ from src.routes.book import book_router
 from src.routes.author import author_router
 from src.routes.admin import admin_router
 
-
+UPLOAD_DIR = Path("uploads")
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 
 version = "v1"
@@ -33,6 +36,8 @@ app = FastAPI(
 
 register_all_exceptions_handlers(app)
 register_middleware(app)
+
+# app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
 
 app.include_router(auth_router, prefix=f"{version_prefix}/auth", tags=["auth"])
 app.include_router(admin_router, prefix=f"{version_prefix}/admin", tags=["admin"])
