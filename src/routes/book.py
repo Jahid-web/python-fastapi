@@ -1,15 +1,15 @@
-import json
-from fastapi import APIRouter, status, Depends, UploadFile, File, Form, HTTPException
+from fastapi import APIRouter, status, Depends, UploadFile, File, Form, HTTPException, Query
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio.session import AsyncSession
 from fastapi.encoders import jsonable_encoder
 from pydantic import ValidationError
+from typing import Literal
 
 from src.db.main import get_session
 from src.core.exceptions import NotFoundException, ForbiddenException
 from src.services.book_services import BookService
 from src.utils.dependencies import RoleChecker, AccessTokenBearer
-from src.schemas.book import BookCreateSchema, BookUpdateSchema, BookResponseSchema, BookSchema
+from src.schemas.book import BookCreateSchema, BookUpdateSchema, BookResponseSchema, BookSchema, PaginatedBookResponseSchema
 from src.models.user import UserRole
 
 book_router = APIRouter()
@@ -47,23 +47,47 @@ async def create_book(book_data: BookCreateSchema, session: AsyncSession = Depen
         })
     )
 
-@book_router.get("/", response_model=list[BookResponseSchema], dependencies=[role_checker], status_code=status.HTTP_200_OK)
-async def get_all_book(session: AsyncSession = Depends(get_session), _:dict = Depends(access_token_bearer)):
-    books = await book_service.get_all_book(session)
+@book_router.get("/", response_model=PaginatedBookResponseSchema, dependencies=[role_checker], status_code=status.HTTP_200_OK)
+async def get_all_book(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    search: str | None = Query(None, max_length=200),
+    category_name: str | None = Query(None, max_length=200),
+    # language: str | None = Query(None, max_length=10),
+    year: int | None = Query(None, ge=1, le=9998),
+    sort_by: Literal[
+        "created_at", "title", "publication_date"
+    ] = "created_at",
+    sort_order: Literal["asc", "desc"] = "desc",
+    session: AsyncSession = Depends(get_session), 
+    _:dict = Depends(access_token_bearer)):
 
-    if not books:
+    books = await book_service.get_all_book(
+        session=session,
+        page=page,
+        page_size=page_size,
+        search=search,
+        category_name=category_name,
+        # language=language,
+        year=year,
+        sort_by=sort_by,
+        sort_order=sort_order
+    )
+
+    if not books["items"]:
         raise NotFoundException(
-            message="No book found",
-            details={}
+            message="No books found",
+            details={
+                "page": page,
+                "search": search,
+            },
         )
 
-    return JSONResponse(
-        content=jsonable_encoder({
-            "message": "Avalable books list.",
-            "book_nos": f"{len(books)} Nos",
-            "books": books
-        })
-    )
+    return {
+        "message": "Available books list.",
+        "book_nos": f'{books["pagination"]["total"]} Nos',
+        **books,
+    }
 
 @book_router.patch("/{book_id}", response_model=BookSchema, dependencies=[role_checker], status_code=status.HTTP_201_CREATED)
 async def update_book(book_id:str, book_data: str = Form(), session: AsyncSession = Depends(get_session), cover_key: UploadFile | None = File(None), file_key: UploadFile | None = File(None)):

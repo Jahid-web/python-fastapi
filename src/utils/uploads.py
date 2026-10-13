@@ -19,6 +19,11 @@ ALLOWED_FORMATS = {
 }
 
 async def uploads(file: UploadFile):
+    if file.filename is None:
+        raise BadRequestException(
+            message="File is required."
+        )
+
     file_bytes = bytearray()
 
     try:
@@ -100,6 +105,11 @@ def validate_pdf(file_data: bytes) -> str:
 
     try:
         reader = PdfReader(BytesIO(file_data), strict=True)
+
+        if reader.is_encrypted:
+            raise BadRequestException(
+                message="Encrypted pdf is not allowed."
+            )
 
         if len(reader.pages) < 1:
             raise BadRequestException(

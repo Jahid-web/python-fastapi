@@ -83,3 +83,18 @@ class BookResponseSchema(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+
+class PaginationSchema(BaseModel):
+    page: int
+    page_size: int
+    total: int
+    total_pages: int
+    has_next: bool
+    has_previous: bool
+
+class PaginatedBookResponseSchema(BaseModel):
+    message: str
+    book_nos: str
+    items: list[BookResponseSchema]
+    pagination: PaginationSchema
+

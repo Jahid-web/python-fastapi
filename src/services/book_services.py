@@ -2,6 +2,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio.session import AsyncSession
 from sqlalchemy.orm import selectinload
 from fastapi import UploadFile
+from typing import Any
+from datetime import date
 
 from src.models.book import Book
 from src.models.author import Author
@@ -9,6 +11,7 @@ from src.core.exceptions import DatabaseException, NotFoundException
 from src.schemas.book import BookCreateSchema, BookUpdateSchema
 from src.models.category import Category
 from src.utils.uploads import uploads
+from src.utils.api_features import APIFeatures
 
 
 class BookService:
@@ -87,13 +90,65 @@ class BookService:
             raise
 
 
-    async def get_all_book(self, session: AsyncSession):
+    async def get_all_book(self, session: AsyncSession, *, page: int = 1, page_size: int = 20, search: str | None = None, category_name: str | None = None, year: int | None = None, sort_by = "created_at", sort_order: str = "desc") -> dict[str, Any]:        
         try:
-            statement = select(Book).options(selectinload(Book.categories)).order_by(Book.created_at.desc())
-            result = await session.execute(statement)
-    
-            books = result.scalars().all()
-            return books
+            statement = (select(Book).options(selectinload(Book.categories)))
+
+            # search
+            search_fields = [
+                lambda term: Book.title.ilike(f"%{term}%"),
+                lambda term: Book.author.has(
+                    Author.name.ilike(f"%{term}%")
+                ),
+            ]
+
+            # filter
+            filter_fields = {
+                "category_name": lambda value: Book.categories.any(
+                    Category.name == str(value)
+                ),
+                "year": lambda value: (
+                    (Book.created_at >= date(int(value), 1, 1))
+                    & (
+                        Book.created_at < date(int(value) + 1, 1, 1)
+                    )
+                )
+            }
+
+            # sorting
+            sort_fields = {
+                "created_at": Book.created_at,
+                "title": Book.title
+            }
+
+            params = {
+                "page": page,
+                "page_size": page_size,
+                "search": search,
+                "category_name": category_name,
+                "year": year,
+                "sort_by": sort_by,
+                "sort_order": sort_order
+            }
+
+            features = APIFeatures(
+                statement,
+                params=params,
+                search_fields=search_fields,
+                filter_fields=filter_fields,
+                sort_fields=sort_fields,
+                default_sort="created_at",
+                stable_sort=Book.id
+            )
+
+            return await (
+                features
+                .search()
+                .filter()
+                .sort()
+                .paginate()
+                .execute(session)
+            )            
 
         except Exception:
             raise
