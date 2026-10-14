@@ -14,7 +14,7 @@ from src.schemas.author import AuthorCreateSchema, AuthorUpdateSchema
 class UserService:
     async def get_user_by_email(self, email:str, session: AsyncSession):
         result = await session.execute(
-            select(User).where(
+            select(User).options(selectinload(User.author)).where(
                 User.email == email
             )
         )
@@ -50,12 +50,16 @@ class UserService:
             user = await self.get_user_by_email(user_email, session)
 
             if user is not None:
-                user_dict = data.model_dump()
+                user_dict = data.model_dump(exclude_unset=True)
 
                 for k, v in user_dict.items():
                     setattr(user, k, v)
 
+                if "name" in user_dict and user.author is not None:
+                    user.author.name = user.name
+
             await session.commit()
+            await session.refresh(user)
             return user
         except Exception:
             await session.rollback()
@@ -75,7 +79,7 @@ class UserService:
     async def get_authors(self, session: AsyncSession):
         try:
             result = await session.execute(
-                select(Author).options(selectinload(Author.books).selectinload(Book.categories))
+                select(Author).options(selectinload(Author.books))
             )
             authors = result.scalars().all()
             return authors
@@ -85,6 +89,7 @@ class UserService:
             raise
 
     async def get_author_by_id(self, author_id:str, session: AsyncSession):
+
         try:
             result = await session.execute(
                 select(Author).where(
@@ -136,6 +141,27 @@ class UserService:
 
             if author is not None:
                 await session.delete(author)
+                await session.commit()
+                return True
+            else:
+                return None
+
+        except Exception:
+            await session.rollback()
+            raise
+
+    async def delete_user(self, user_id:str, session: AsyncSession):
+        try:
+            result = await session.execute(
+                select(User).where(
+                    User.id == user_id
+                )
+            )
+
+            user = result.scalar_one_or_none()
+
+            if user is not None:
+                await session.delete(user)
                 await session.commit()
                 return True
             else:

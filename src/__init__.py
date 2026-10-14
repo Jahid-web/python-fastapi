@@ -8,6 +8,7 @@ from src.routes.auth import auth_router
 from src.routes.book import book_router
 from src.routes.author import author_router
 from src.routes.admin import admin_router
+from src.routes.library import lib_router
 
 UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -43,3 +44,4 @@ app.include_router(auth_router, prefix=f"{version_prefix}/auth", tags=["auth"])
 app.include_router(admin_router, prefix=f"{version_prefix}/admin", tags=["admin"])
 app.include_router(book_router, prefix=f"{version_prefix}/book", tags=["book"])
 app.include_router(author_router, prefix=f"{version_prefix}/author", tags=["author"])
+app.include_router(lib_router, prefix=f"{version_prefix}/library", tags=["library"])

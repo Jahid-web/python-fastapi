@@ -7,7 +7,7 @@ from typing import Annotated
 from src.utils.uploads import uploads
 
 from src.db.main import get_session
-from src.schemas.user import UserCreateSchema, UserResponseSchema, LoginRequestSchema, UserGetResponseSchema, UserPasswordResetSchema, UserPasswordResetConfirm
+from src.schemas.user import UserCreateSchema, UserResponseSchema, LoginRequestSchema, UserGetResponseSchema, UserPasswordResetSchema, UserPasswordResetConfirm, UserUpdateSchema
 from src.core.security import create_access_token, verify_password, create_url_safe_token, decode_url_safe_token, hash_password
 from src.core.exceptions import ConflictException, UnAuthorizedException, ForbiddenException, DatabaseException, BadRequestException, NotFoundException
 from src.services.user_services import UserService
@@ -95,6 +95,23 @@ async def user_login(login_data: LoginRequestSchema, session:AsyncSession=Depend
 @auth_router.get("/me", response_model=UserGetResponseSchema, status_code=status.HTTP_200_OK)
 async def get_user(user = Depends(get_current_user), _:bool = Depends(role_checker)):
     return user
+
+@auth_router.patch("/update-me", status_code=status.HTTP_201_CREATED)
+async def update_user(user_data: UserUpdateSchema, session: AsyncSession = Depends(get_session), _:bool = Depends(role_checker)):
+    user_email = user_data.email
+
+    update_data = await user_service.update_me(user_email, user_data, session)
+
+    if update_data is None:
+        raise BadRequestException(
+            message="Nothing to found try again."
+        )
+
+    return {
+        "message": "User updated successfully.",
+        "user_data": update_data
+    }
+
 
 @auth_router.get("/verify/{token}", status_code=status.HTTP_200_OK)
 async def verify_user_account(token: str, session: AsyncSession = Depends(get_session)):

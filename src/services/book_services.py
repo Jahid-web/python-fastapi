@@ -3,8 +3,8 @@ from sqlalchemy.ext.asyncio.session import AsyncSession
 from sqlalchemy.orm import selectinload
 from fastapi import UploadFile
 from typing import Any
-from datetime import date
 
+from src.core.book_api_feature_config import BOOK_API_CONFIG
 from src.models.book import Book
 from src.models.author import Author
 from src.core.exceptions import DatabaseException, NotFoundException
@@ -92,35 +92,35 @@ class BookService:
 
     async def get_all_book(self, session: AsyncSession, *, page: int = 1, page_size: int = 20, search: str | None = None, category_name: str | None = None, year: int | None = None, sort_by = "created_at", sort_order: str = "desc") -> dict[str, Any]:        
         try:
-            statement = (select(Book).options(selectinload(Book.categories)))
+            statement = (select(Book).options(selectinload(Book.categories), selectinload(Book.author)))
 
             # search
-            search_fields = [
-                lambda term: Book.title.ilike(f"%{term}%"),
-                lambda term: Book.author.has(
-                    Author.name.ilike(f"%{term}%")
-                ),
-            ]
+            # search_fields = [
+            #     lambda term: Book.title.ilike(f"%{term}%"),
+            #     lambda term: Book.author.has(
+            #         Author.name.ilike(f"%{term}%")
+            #     ),
+            # ]
 
             # filter
-            filter_fields = {
-                "category_name": lambda value: Book.categories.any(
-                    Category.name == str(value)
-                ),
-                "year": lambda value: (
-                    (Book.created_at >= date(int(value), 1, 1))
-                    & (
-                        Book.created_at < date(int(value) + 1, 1, 1)
-                    )
-                )
-            }
+            # filter_fields = {
+            #     "category_name": lambda value: Book.categories.any(
+            #         Category.name == str(value)
+            #     ),
+            #     "year": lambda value: (
+            #         (Book.created_at >= date(int(value), 1, 1))
+            #         & (
+            #             Book.created_at < date(int(value) + 1, 1, 1)
+            #         )
+            #     )
+            # }
 
             # sorting
-            sort_fields = {
-                "created_at": Book.created_at,
-                "title": Book.title
-            }
-
+            # sort_fields = {
+            #     "created_at": Book.created_at,
+            #     "title": Book.title
+            # }
+ 
             params = {
                 "page": page,
                 "page_size": page_size,
@@ -134,10 +134,7 @@ class BookService:
             features = APIFeatures(
                 statement,
                 params=params,
-                search_fields=search_fields,
-                filter_fields=filter_fields,
-                sort_fields=sort_fields,
-                default_sort="created_at",
+                config=BOOK_API_CONFIG,
                 stable_sort=Book.id
             )
 

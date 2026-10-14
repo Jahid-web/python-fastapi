@@ -68,6 +68,10 @@ class BookUpdateSchema(BaseModel):
     description: str | None = Field(default=None)
     category_ids: list[uuid.UUID] = Field(default_factory=list)
 
+class BookAuthorResponseSchema(BaseModel):
+    id: uuid.UUID
+    name: str
+
 class BookResponseSchema(BaseModel):
     id: uuid.UUID
     title: str
@@ -80,6 +84,7 @@ class BookResponseSchema(BaseModel):
     created_at: datetime
     updated_at: datetime
     categories: list[CategoryResponseSchema] = []
+    author: BookAuthorResponseSchema
 
     model_config = ConfigDict(from_attributes=True)
 

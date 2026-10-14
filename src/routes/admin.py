@@ -12,7 +12,7 @@ from src.schemas.category import CategoryCreateSchema, CategoryResponseSchema, C
 from src.utils.dependencies import RoleChecker
 from src.models.user import UserRole
 from src.utils.dependencies import AccessTokenBearer
-from src.schemas.author import AuthorResponseSchema
+from src.schemas.author import AuthorResponseSchema, AuthorSchema
 
 admin_router = APIRouter()
 user_service = UserService()
@@ -25,6 +25,44 @@ async def get_all_users(session: AsyncSession = Depends(get_session)):
     users = await user_service.get_all_users(session)
 
     return users
+
+
+@admin_router.get("/author/{author_id}", response_model=AuthorSchema, status_code=status.HTTP_200_OK)
+async def get_author(author_id:str, session: AsyncSession = Depends(get_session)):
+    author = await user_service.get_author_by_id(author_id, session)
+
+    if author is None:
+            raise NotFoundException(
+                message="No author found.",
+                details={}
+            )
+
+    return author
+
+    
+    
+@admin_router.delete("/{author_id}", status_code=status.HTTP_200_OK, dependencies=[role_checker])
+async def delete_author(author_id:str, session: AsyncSession = Depends(get_session), token_details: dict = Depends(access_token_bearer)):
+    role = token_details.get("user")["role"]
+
+    if role != UserRole.ADMIN:
+        raise UnAuthorizedException(
+            message="You are not allowed to perform this action."
+        )
+
+    result = await user_service.delete_author(author_id, session)
+
+    if result is False:
+        raise NotFoundException(
+            message="No author found to delete.",
+            details={}
+        )
+
+    return {
+        "success": True,
+        "message": "Author was deleted successfully."
+    }
+
 
 @admin_router.get("/authors", response_model=list[AuthorResponseSchema], status_code=status.HTTP_200_OK, dependencies=[role_checker])
 async def get_authors_only(session: AsyncSession = Depends(get_session)):
@@ -72,24 +110,25 @@ async def get_all_category(session: AsyncSession = Depends(get_session)):
         })
     ) 
 
-@admin_router.delete("/{author_id}", status_code=status.HTTP_200_OK, dependencies=[role_checker])
-async def delete_author(author_id:str, session: AsyncSession = Depends(get_session), token_details: dict = Depends(access_token_bearer)):
-    role = token_details.get("user")["role"]
 
+@admin_router.delete("/delete-user/{user_id}", status_code=status.HTTP_200_OK, dependencies=[role_checker])
+async def delete_user(user_id: str, session: AsyncSession = Depends(get_session), token_details: dict = Depends(access_token_bearer)):
+    role = token_details.get("user")["role"] 
+    
     if role != UserRole.ADMIN:
         raise UnAuthorizedException(
             message="You are not allowed to perform this action."
         )
 
-    result = await user_service.delete_author(author_id, session)
+    result = await user_service.delete_user(user_id, session)
 
     if result is False:
         raise NotFoundException(
-            message="No author found to delete.",
+            message="No user found to delete.",
             details={}
         )
 
     return {
-        "success": True,
-        "message": "Author deleted successfully."
-    }
+            "success": True,
+            "message": "User was deleted successfully."
+        }

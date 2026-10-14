@@ -34,48 +34,67 @@ class APIFeatures:
             statement: Select,
             *,
             params: Mapping[str, Any],
-            search_fields: Sequence[SearchFactory] = (),
-            filter_fields: Mapping[str, FilterFactory] | None = None,
-            sort_fields: Mapping[str, Any] | None = None,
-            default_sort: str = "created_at",
+            config: Mapping[str, Any],
             stable_sort: Any = None,
-            max_page_size: int = 100
+
+            # search_fields: Sequence[SearchFactory] = (),
+            # filter_fields: Mapping[str, FilterFactory] | None = None,
+            # sort_fields: Mapping[str, Any] | None = None,
+            # default_sort: str = "created_at",
+            # max_page_size: int = 100
     ):
         self.statement = statement
         self.filtered_statement = statement
         
         self.params = params
-        self.search_fields = search_fields
-        self.filter_fields = filter_fields or {}
-        self.sort_fields = sort_fields or {}
-        self.default_sort = default_sort
+        self.config = config
         self.stable_sort = stable_sort
-        self.max_page_size = max_page_size
 
-        self.page = max(1, int(params.get("page", 1)))
-        self.page_size = min(
-            max(1, int(params.get("page_size", 20))),
-            max_page_size
-        )
+        # self.search_fields = search_fields
+        # self.filter_fields = filter_fields or {}
+        # self.sort_fields = sort_fields or {}
+        # self.default_sort = default_sort
+        # self.max_page_size = max_page_size
+
+        self.page = max(1, int(params.get("page", 1)))        
+        # self.page_size = min(
+        #     max(1, int(params.get("page_size", 20))),
+        #     max_page_size
+        # )
+        max_page_size = config.get("max_page_size", 100)
+        requested_size = int(params.get("page_size", 20))
+        self.page_size = min(max(1, requested_size), max_page_size)
 
 
     def search(self) -> "APIFeatures":
         term = self.params.get("search")
 
-        if term and str(term).strip() and self.search_fields:
+        if term and not str(term).strip():
             term = str(term).strip()
 
-            conditions = [
-                factory(term) for factory in self.search_fields
-            ]
-            self.filtered_statement = (
-                self.filtered_statement.where(or_(*conditions))
-            )
+            # conditions = [
+            #     factory(term) for factory in self.search_fields
+            # ]
+            # self.filtered_statement = (
+            #     self.filtered_statement.where(or_(*conditions))
+            # )
+            search_fields: Sequence[SearchFactory] = (self.config.get("search_fields", []))
+
+            if search_fields:
+                term = str(term).strip()
+
+                self.filtered_statement = self.filtered_statement.where(
+                    or_(*(field(term) for field in search_fields))
+                )
 
         return self
 
     def filter(self) -> "APIFeatures":
-        for name, factory in self.filter_fields.items():
+        filter_fields: Mapping[str, FilterFactory] = (
+            self.config.get("filter_fields", {})
+        )
+
+        for name, factory in filter_fields.items():
             value = self.params.get(name)
 
             if value is None or value == "":
@@ -88,14 +107,21 @@ class APIFeatures:
         return self
 
     def sort(self) -> "APIFeatures":
-        requested = self.params.get("sort_by") or self.default_sort
-        column = self.sort_fields.get(requested)
+        sort_fields = self.config["sort_fields"]
+        sort_by = (
+            self.params.get("sort_by") or self.config.get("default_sort", "created_at")
+        )
+
+        # requested = self.params.get("sort_by") or self.default_sort
+
+        column = sort_fields.get(sort_by, sort_fields[self.config.get("default_sort", "created_at")])
 
         if column is None:
             column = self.sort_fields[self.default_sort]
 
         direction = str(
-            self.params.get("sort_order", "desc")
+            self.params.get("sort_order") or
+            self.config.get("default_sort_order", "desc")
         ).lower()
 
         ordering = column.asc() if direction == "asc" else column.desc()

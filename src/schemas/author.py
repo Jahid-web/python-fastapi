@@ -7,7 +7,7 @@ class AuthorSchema(BaseModel):
     id: uuid.UUID
     name: str
     user_id: uuid.UUID
-    bio: str
+    bio: str | None = None
 class AuthorCreateSchema(BaseModel):
     name: str = Field(
         min_length=1,
