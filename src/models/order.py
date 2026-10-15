@@ -80,7 +80,7 @@ class OrderItem(Base):
         default=uuid.uuid4
     )
 
-    order_id: Mapped[str] = mapped_column(
+    order_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey(
             "orders.id",
             ondelete="CASCADE"
@@ -89,7 +89,7 @@ class OrderItem(Base):
         index=True,
     )
 
-    book_id: Mapped[str] = mapped_column(
+    book_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey(
             "books.id",
             ondelete="RESTRICT",
@@ -119,21 +119,21 @@ class OrderItem(Base):
         back_populates="order_items",
     )
 
-    @validates("price")
-    def validate_price(self, key, value):
-        if value < 0:
-            raise ValidationException(
-                message="Order price cannot be negative.",
-                details="validation_error"
-            )
-        return value.strip()
+    # @validates("price")
+    # def validate_price(self, key, value):
+    #     if value < 0:
+    #         raise ValidationException(
+    #             message="Order price cannot be negative.",
+    #             details="validation_error"
+    #         )
+    #     return value.strip()
 
 
-    @validates("quantity")
-    def validate_rating(self, key, value):
-        if value < 0:
-            raise ValidationException(
-                message="Order quantity cannot be negative.",
-                details="validation_error"
-            )                
-        return value.strip()
+    # @validates("quantity")
+    # def validate_rating(self, key, value):
+    #     if value < 0:
+    #         raise ValidationException(
+    #             message="Order quantity cannot be negative.",
+    #             details="validation_error"
+    #         )                
+    #     return value.strip()

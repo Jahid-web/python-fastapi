@@ -22,12 +22,13 @@ class Cart(Base):
     __tablename__ = "carts"
 
     id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
         primary_key=True,
         index=True,
         default=uuid.uuid4
     )
 
-    user_id: Mapped[str] = mapped_column(
+    user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey(
             "users.id",
             ondelete="CASCADE",
@@ -74,12 +75,13 @@ class CartItem(Base):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
         primary_key=True,
         index=True,
         default=uuid.uuid4
     )
 
-    cart_id: Mapped[str] = mapped_column(
+    cart_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey(
             "carts.id",
             ondelete="CASCADE",
@@ -88,7 +90,7 @@ class CartItem(Base):
         index=True,
     )
 
-    book_id: Mapped[str] = mapped_column(
+    book_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey(
             "books.id",
             ondelete="RESTRICT",

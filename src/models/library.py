@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, UniqueConstraint, func
+from sqlalchemy import DateTime, ForeignKey, UniqueConstraint, func, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.db.main import Base
@@ -25,12 +25,13 @@ class Library(Base):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
         primary_key=True,
         index=True,
         default=uuid.uuid4
     )
 
-    user_id: Mapped[str] = mapped_column(
+    user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey(
             "users.id",
             ondelete="CASCADE",
@@ -39,7 +40,7 @@ class Library(Base):
         index=True,
     )
 
-    book_id: Mapped[str] = mapped_column(
+    book_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey(
             "books.id",
             ondelete="RESTRICT",
@@ -48,7 +49,7 @@ class Library(Base):
         index=True,
     )
 
-    order_id: Mapped[str | None] = mapped_column(
+    order_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey(
             "orders.id",
             ondelete="SET NULL",

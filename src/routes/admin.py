@@ -132,3 +132,18 @@ async def delete_user(user_id: str, session: AsyncSession = Depends(get_session)
             "success": True,
             "message": "User was deleted successfully."
         }
+
+
+"""
+ORDER ROUTES <-----> ORDER ITEM
+"""
+# /api/v1/admin/orders --- List all orders with filters
+# /api/v1/admin/orders/{order_id}  ----- Inspect any order
+# /api/v1/admin/orders/{order_id}/status --- Change order status
+# /api/v1/admin/orders/stats --- View order and sales statistics
+
+"""
+Optional order-item routes
+"""
+# PATCH: /api/v1/orders/{order_id}/items/{item_id} ---- Update quantity when the order is still editable
+# DELETE: /api/v1/orders/{order_id}/items/{item_id} ---- Remove an item before confirmation

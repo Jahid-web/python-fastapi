@@ -49,7 +49,7 @@ class Book(Base):
         nullable=False
     )
 
-    author_id: Mapped[str] = mapped_column(
+    author_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey(
             "authors.id",
             ondelete="RESTRICT"
