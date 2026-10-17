@@ -140,13 +140,15 @@ class OrderService:
     # /api/v1/orders/{order_id}/cancel ---- Cancel an eligible order
     async def cancel_order(self, user_id: str, order_id: str, session: AsyncSession) -> OrderResponseSchema:
         try:
-            order = await session.execute(
+            order_data = await session.execute(
                 select(Order).where(
                     Order.id == order_id,
                     Order.user_id == user_id
                 ).options(selectinload(Order.items))
                 .with_for_update(of=Order)
             )
+
+            order = order_data.scalar_one_or_none()
 
             if order is None:
                 raise NotFoundException(
@@ -185,20 +187,23 @@ class OrderService:
 
             session.add(order)
             await session.commit()
+            return order
 
-        except Exception:
+        except Exception as e:
             await session.rollback()
             raise
 
     # /api/v1/orders/{order_id}/items ---- List items in an order
     async def get_order_items(self, user_id: str, order_id: str, session: AsyncSession) -> list[OrderItemResponseSchema]:
         try:
-            order = await session.execute(
+            result = await session.execute(
                 select(Order).where(
                     Order.id == order_id,
                     Order.user_id == user_id
                 ).options(selectinload(Order.items))
             )
+
+            order = result.scalar_one_or_none()
 
             if order is None:
                 raise NotFoundException(
@@ -213,4 +218,5 @@ class OrderService:
         except Exception:
             await session.rollback()
             raise
+
 

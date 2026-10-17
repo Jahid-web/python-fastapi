@@ -6,7 +6,7 @@ from src.db.main import get_session
 from src.core.exceptions import DatabaseException
 from src.models.user import UserRole, User
 from src.utils.dependencies import RoleChecker, get_current_user
-from src.schemas.order import OrderResponseSchema, OrderCreateSchema
+from src.schemas.order import OrderResponseSchema, OrderCreateSchema, OrderItemResponseSchema
 from src.services.order_services import OrderService
 
 
@@ -54,3 +54,30 @@ async def get_orders(session: AsyncSession = Depends(get_session)) -> list[Order
         )
     
     return orders
+
+@order_router.get("/{order_id}/items", response_model=list[OrderItemResponseSchema], status_code=status.HTTP_200_OK, dependencies=[role_checker])
+async def get_order_items(order_id: str, current_user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)) -> list[OrderItemResponseSchema]:
+    user_id = current_user.id
+
+    order_items = await order_service.get_order_items(user_id, order_id, session)
+
+    if order_items is None:
+        raise DatabaseException(
+            message="Something went wrong.",
+            details={}
+        )
+    return order_items
+
+
+@order_router.post("/{order_id}/cancel", response_model=OrderResponseSchema, status_code=status.HTTP_200_OK, dependencies=[role_checker])
+async def get_order_items(order_id: str, current_user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)) -> OrderResponseSchema:
+    user_id = current_user.id
+
+    order_details = await order_service.cancel_order(user_id, order_id, session)
+
+    if order_details is None:
+        raise DatabaseException(
+            message="Something went wrong.",
+            details={}
+        )
+    return order_details
