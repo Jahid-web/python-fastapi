@@ -7,7 +7,7 @@ from src.core.exceptions import DatabaseException, NotFoundException, ConflictEx
 from src.models.library import Library
 from src.models.book import Book
 from src.models.order import Order
-from src.schemas.library import LibResponseSchema
+from src.schemas.library import LibResponseSchema, LibResponseSchema, LibPurchaseSchema
 
 class LibraryService:
     # GET /library  ----  List the authenticated user's books
@@ -20,12 +20,12 @@ class LibraryService:
                 )
             )
 
-            total = count_result.scalars().all()
+            total = count_result.scalar_one_or_none()
 
             result = await session.execute(
                 select(Library).where(
                     Library.user_id == user_id
-                ).options(selectinload(Library.book))
+                ).options(selectinload(Library.book).selectinload(Book.library_entries))
                 .order_by(Library.purchased_at.desc())
             )
 
@@ -64,7 +64,7 @@ class LibraryService:
                 select(Library).where(
                     Library.user_id == user_id,
                     Library.book_id == book_id
-                ).options(selectinload(Library.book))
+                ).options(selectinload(Library.book).selectinload(Book.library_entries))
             )
 
             lib_book = result.scalar_one_or_none()
@@ -162,11 +162,11 @@ class LibraryService:
             await session.rollback()
             raise
 
-    async def get_lib_order(self, user_id: str, order_id: str, session: AsyncSession):
+    async def get_lib_order(self, user_id: str, order_id: str, session: AsyncSession) -> list[LibPurchaseSchema]:
         try:
             result = await session.execute(
                 select(Library).options(
-                    selectinload(Library.book),
+                    selectinload(Library.book).selectinload(Book.library_entries),
                     selectinload(Library.order),
                 ).where(
                     Library.user_id == user_id,
@@ -174,7 +174,7 @@ class LibraryService:
                 )
             )
 
-            lib_order = result.scalar_one_or_none()
+            lib_order = result.scalars().all()
             return lib_order
 
         except Exception:
@@ -184,9 +184,9 @@ class LibraryService:
     # DELETE /library/{entry_id}  ---- Remove a library entry
     async def delete_lib(self, user_id: str, entry_id: str, session: AsyncSession) -> None:
         try:
-            entry = await self.get_lib_by_entry_id(user_id, entry_id, session)
+            lib = await self.get_lib_by_entry_id(user_id, entry_id, session)
 
-            await session.delete(entry)
+            await session.delete(lib)
             await session.commit()
 
             return True

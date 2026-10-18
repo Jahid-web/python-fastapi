@@ -5,7 +5,7 @@ from src.db.main import get_session
 from src.core.exceptions import NotFoundException, UnAuthorizedException, BadRequestException
 from src.services.library_services import LibraryService
 from src.models.user import UserRole
-from src.schemas.library import LibResponseSchema, LibPurchaseSchema, LibListResponseSchema
+from src.schemas.library import LibResponseSchema, LibPurchaseSchema, LibListResponseSchema, LibResponseSchema
 from src.utils.dependencies import RoleChecker, get_current_user
 from src.models.user import User
 
@@ -101,8 +101,8 @@ async def create_library_entry(book_id: str, order_id: str, current_user: User =
     return lib_entry
 
 # 6. /api/v1/library/order/{order_id} === List library books associated with an order.
-@lib_router.get("/order/{order_id}", response_model=LibPurchaseSchema, status_code=status.HTTP_200_OK)
-async def get_lib_order( order_id: str, current_user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
+@lib_router.get("/order/{order_id}", response_model=list[LibPurchaseSchema], status_code=status.HTTP_200_OK)
+async def get_lib_order( order_id: str, current_user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)) -> list[LibPurchaseSchema]:
     user_id = current_user.id
     
     lib_order = await lib_service.get_lib_order(user_id, order_id, session)
@@ -116,7 +116,7 @@ async def get_lib_order( order_id: str, current_user: User = Depends(get_current
     return lib_order
 
 # 7. /api/v1/library/{book_id} === Remove a book from the user's library, if your business rules allow it.
-@lib_router.delete("/entry", status_code=status.HTTP_202_ACCEPTED)
+@lib_router.delete("/entry/{entry_id}", status_code=status.HTTP_201_CREATED)
 async def delete_library_entry(entry_id: str, current_user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)) -> None:
     user_id = current_user.id
 
