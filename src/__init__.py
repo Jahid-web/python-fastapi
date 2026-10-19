@@ -10,6 +10,7 @@ from src.routes.author import author_router
 from src.routes.admin import admin_router
 from src.routes.library import lib_router
 from src.routes.order import order_router
+from src.routes.cart import cart_router
 
 UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -47,3 +48,4 @@ app.include_router(book_router, prefix=f"{version_prefix}/book", tags=["book"])
 app.include_router(author_router, prefix=f"{version_prefix}/author", tags=["author"])
 app.include_router(lib_router, prefix=f"{version_prefix}/library", tags=["library"])
 app.include_router(order_router, prefix=f"{version_prefix}/orders", tags=["orders"])
+app.include_router(cart_router, prefix=f"{version_prefix}/cart", tags=["cart"])

@@ -1,21 +1,21 @@
+import uuid
 from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload, joinedload
 from sqlalchemy.ext.asyncio.session import AsyncSession
 from decimal import Decimal
 
 from src.models.book import Book
+from src.db.main import get_session
 from src.models.cart import Cart, CartItem
 from src.core.exceptions import DatabaseException, ValidationException, NotFoundException, ConflictException
 
 MAX_ITEM_QUANTITY = 100
 
 class CartService:
-    def __init__(self, session: AsyncSession):
-        self.session = session
 
-    async def get_cart_by_user_id(self, user_id: str) -> Cart:
+    async def get_cart_by_user_id(self, user_id: uuid.UUID, session: AsyncSession) -> Cart:
         try:
-            result = await self.db.execute(
+            result = await session.execute(
                 select(Cart)
                 .where(Cart.user_id == user_id)
                 .options(
@@ -32,36 +32,41 @@ class CartService:
             
             return cart
         except Exception:
-            self.session.rollback()
+            await session.rollback()
             raise
 
     #1.  Get my cart ==== GET /api/v1/cart ======= Retrieve cart, items, and totals
-    async def get_or_create_user_cart(self, user_id: str) -> Cart:
+    async def get_or_create_user_cart(self, user_id: uuid.UUID, session: AsyncSession) -> Cart:
         try:
-            cart = await self.get_cart_by_user_id(user_id)
+            cart = await self.get_cart_by_user_id(user_id, session)
 
             if cart is not None:
                 return cart
+            else:
+                cart = Cart(user_id=uuid.UUID(user_id))
+                session.add(cart)
 
-            cart = Cart(user_id=user_id)
-            self.session.add(cart)
-            self.session.commit()
+                await session.flush()
+                await session.commit()
+                await session.refresh(cart)
+
+                return cart
 
         except Exception:
-            await self.session.rollback()
+            await session.rollback()            
             raise
 
-        cart = await self.get_cart_by_user_id(user_id)
+        # cart = await get_cart_by_user_id(user_id)
 
-        if cart is None:
-            raise DatabaseException(
-                message="Unable to initialize cart.",
-                details={}
-            )
-        return cart
+        # if cart is None:
+        #     raise DatabaseException(
+        #         message="Unable to initialize cart.",
+        #         details={}
+        #     )
+        # return cart
 
     #2. Get cart summary =======  GET /api/v1/cart/summary =======  Retrieve item count and subtotal
-    async def get_summary(self, user_id: str) -> dict:
+    async def get_summary(self, user_id: uuid.UUID, session: AsyncSession) -> dict:
         try:
             cart = await self._locked_cart(user_id)
 
@@ -81,15 +86,18 @@ class CartService:
             }
 
         except Exception:
-            await self.session.rollback()
+            await session.rollback()
             raise
 
 
-    async def _locked_cart(self, user_id: str) -> Cart:
+    async def _locked_cart(self, user_id: uuid.UUID, session: AsyncSession) -> Cart:
         try:
-            await self.get_or_create_user_cart(user_id)
-
-            cart = await self.get_cart_by_user_id(user_id)
+            
+            test = await self.get_or_create_user_cart(user_id, session)
+            print("##################")
+            print(test)
+            
+            cart = await self.get_cart_by_user_id(user_id, session)
 
             if cart is None:
                 raise NotFoundException(
@@ -100,33 +108,35 @@ class CartService:
             return cart
 
         except Exception:
-            self.session.rollback()
+            await session.rollback()
             raise
 
-    async def _load_cart(self, user_id: str) -> Cart:
+    async def _load_cart(self, user_id: uuid.UUID, session: AsyncSession) -> Cart:
         try:
-            cart = await self.get_cart_by_user_id(user_id)
+            cart = await self.get_cart_by_user_id(user_id, session)
 
             if cart is None:
-                return await self.get_or_create_user_cart(user_id)
+                return await self.get_or_create_user_cart(user_id, session)
             
             return cart
 
         except Exception:
-            self.session.rollback()
+            await session.rollback()
             raise
     
     #3. Add item  ======= POST /api/v1/cart/items =======  Add a book or increase its quantity
-    async def add_item(self, user_id: str, book_id: str, qty: int = 1) -> Cart:
+    async def add_item(self, user_id: uuid.UUID, book_id: uuid.UUID, session: AsyncSession, qty: int = 1) -> Cart:
         try:
             if qty < 1 or qty > MAX_ITEM_QUANTITY:
                 raise ValidationException(
                     message=f"Quantity must be between 1 and {MAX_ITEM_QUANTITY}.",
                     details={}
                 )
-            cart = await self._locked_cart(user_id)
 
-            book_result = await self.session.execute(
+            
+            cart = await self._locked_cart(user_id, session)
+
+            book_result = await session.execute(
                 select(Book).where(Book.id == book_id).with_for_update()
             )
             book = book_result.scalar_one_or_none()
@@ -143,7 +153,7 @@ class CartService:
                     details={}
                 )
 
-            item_result = await self.session.execute(
+            item_result = await session.execute(
                 select(CartItem).where(
                     CartItem.cart_id == cart.id,
                     CartItem.book_id == book_id
@@ -168,34 +178,34 @@ class CartService:
             if item:
                 item.quantity = new_qty
             else:
-                self.session.add(
+                session.add(
                     CartItem(
                         cart_id=cart.id,
                         book_id=book_id,
                         quantity=qty
                     )
                 )
-            await self.session.commit()
-            return await self._locked_cart(user_id)
+            await session.commit()
+            return await self._locked_cart(user_id, session)
 
         except Exception:
-            await self.session.rollback()
+            await session.rollback()
             raise
 
     #4. Get cart items =======  GET /api/v1/cart/items =======  List items with pagination 
-    async def get_cart(self, user_id: str) -> Cart:
+    async def get_cart(self, user_id: str, session: AsyncSession) -> Cart:
             try:
                 cart = await self._load_cart(user_id)
                 return cart
     
             except Exception:
-                await self.session.rollback()
+                await session.rollback()
                 raise
     
     #5. Get one cart item =======  GET /api/v1/cart/items/{item_id} =======  Retrieve a specific item 
     
     #6. Update quantity =======  PATCH /api/v1/cart/items/{item_id} =======  Set a new quantity 
-    async def update_item(self, user_id: str, item_id: str, qty: int) -> Cart:
+    async def update_item(self, user_id: str, item_id: str, qty: int, session: AsyncSession) -> Cart:
         try:
             if qty < 1 or qty > MAX_ITEM_QUANTITY:
                 raise ValidationException(
@@ -204,7 +214,7 @@ class CartService:
                 )
             cart = await self._locked_cart(user_id)
 
-            result = await self.session.execute(
+            result = await session.execute(
                 select(CartItem).where(
                     CartItem.id == item_id,
                     CartItem.cart_id == cart.id
@@ -218,7 +228,7 @@ class CartService:
                     details={}
                 )
 
-            book_result = await self.session.execute(
+            book_result = await session.execute(
                 select(Book).where(Book.id == item.book_id)
             )
             book = book_result.scalar_one_or_none()
@@ -235,22 +245,22 @@ class CartService:
                     details={}
                 )
             item.quantity = qty
-            await self.session.commit()
+            await session.commit()
 
             return await self._load_cart(user_id)
 
         except Exception:
-            await self.session.rollback()
+            await session.rollback()
             raise
 
     
     #7. Increment quantity =======  POST /api/v1/cart/items/{item_id}/increment =======  Increase quantity 
     #8. Decrement quantity =======  POST /api/v1/cart/items/{item_id}/decrement =======  Decrease quantity 
-    async def change_qty(self, user_id: str, item_id: str, delta: int) -> Cart:
+    async def change_qty(self, user_id: str, item_id: str, delta: int, session: AsyncSession) -> Cart:
             try:
                 cart = await self._locked_cart(user_id)
     
-                result = await self.session.execute(
+                result = await session.execute(
                     select(CartItem).where(
                         CartItem.id == item_id,
                         CartItem.cart_id == cart.id
@@ -271,7 +281,7 @@ class CartService:
                         details={}
                     )
     
-                book_result = await self.session.execute(
+                book_result = await session.execute(
                     select(Book).where(Book.id == item.book_id)
                 )
                 book = book_result.scalar_one_or_none()
@@ -283,20 +293,20 @@ class CartService:
                     )
     
                 item.quantity = new_qty
-                await self.session.commit()
+                await session.commit()
     
                 return await self._load_cart(user_id)
     
             except Exception:
-                await self.session.rollback()
+                await session.rollback()
                 raise
     
     #9. Remove item =======  DELETE /api/v1/cart/items/{item_id}  ======= Remove one book 
-    async def remove_item(self, user_id: str, item_id: str) -> None:
+    async def remove_item(self, user_id: str, item_id: str, session: AsyncSession) -> None:
         try:
             cart = await self._load_cart(user_id)
 
-            result = await self.session.execute(
+            result = await session.execute(
                 select(CartItem).where(
                     CartItem.id == item_id,
                     CartItem.cart_id == cart.id
@@ -310,19 +320,19 @@ class CartService:
                     details={}
                 )
 
-            await self.session.delete(item)
-            await self.session.commit()
+            await session.delete(item)
+            await session.commit()
 
         except Exception:
-            await self.session.rollback()
+            await session.rollback()
             raise
 
     #10. Clear cart =======  DELETE /api/v1/cart/items =======  Remove all cart items 
-    async def clear_cart(self, user_id: str) -> None:
+    async def clear_cart(self, user_id: str, session: AsyncSession) -> None:
         try:
             cart = await self._locked_cart(user_id)
 
-            result = await self.session.execute(
+            result = await session.execute(
                 select(CartItem).where(
                     CartItem.cart_id == cart.id
                 )
@@ -330,17 +340,17 @@ class CartService:
             items = result.scalars().all()
 
             for item in items:
-                await self.session.delete(item)
+                await session.delete(item)
 
-            await self.session.commit()
+            await session.commit()
 
         except Exception:
-            await self.session.commit()
+            await session.commit()
             raise
         
     #11. Merge guest cart =======  POST /api/v1/cart/merge  ======= Merge an anonymous cart after login 
     #12 Validate cart =======  POST /api/v1/cart/validate  ======= Check stock and purchase eligibility
-    async def validate_cart(self, user_id: str) -> dict:
+    async def validate_cart(self, user_id: str, session: AsyncSession) -> dict:
         try:
             cart = await self._locked_cart(user_id)
 
@@ -371,5 +381,5 @@ class CartService:
             }
 
         except Exception:
-            await self.session.rollback()
+            await session.rollback()
             raise
