@@ -93,18 +93,28 @@ class CartService:
     async def _locked_cart(self, user_id: uuid.UUID, session: AsyncSession) -> Cart:
         try:
             
-            test = await self.get_or_create_user_cart(user_id, session)
-            print("##################")
-            print(test)
+            # test = await self.get_or_create_user_cart(user_id, session)
+            # print("##################")
+            # print(test)
             
-            cart = await self.get_cart_by_user_id(user_id, session)
+            # cart = await self.get_cart_by_user_id(user_id, session)
+
+            result = await session.execute(
+                select(Cart)
+                .where(Cart.user_id == user_id)
+                .with_for_update()
+            )
+            cart = result.scalar_one_or_none()
 
             if cart is None:
-                raise NotFoundException(
-                    message="Cart not found.",
-                    details={}
-                )
-            
+                # raise NotFoundException(
+                #     message="Cart not found.",
+                #     details={}
+                # )
+                cart = Cart(user_id=user_id)
+                session.add(cart)
+                await session.flush()
+
             return cart
 
         except Exception:
@@ -186,7 +196,15 @@ class CartService:
                     )
                 )
             await session.commit()
-            return await self._locked_cart(user_id, session)
+            # return await self._locked_cart(user_id, session)
+            result = await session.execute(
+                select(Cart).where(
+                    Cart.user_id == user_id
+                ).options(
+                    selectinload(Cart.items)
+                )
+            )
+            return result.scalar_one_or_none()
 
         except Exception:
             await session.rollback()
@@ -195,7 +213,7 @@ class CartService:
     #4. Get cart items =======  GET /api/v1/cart/items =======  List items with pagination 
     async def get_cart(self, user_id: str, session: AsyncSession) -> Cart:
             try:
-                cart = await self._load_cart(user_id)
+                cart = await self._load_cart(user_id, session)
                 return cart
     
             except Exception:
