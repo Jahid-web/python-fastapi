@@ -25,13 +25,13 @@ async def get_cart(current_user: User = Depends(get_current_user), session: Asyn
 async def get_summary(current_user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)) -> CartSummarySchema:
     user_id = current_user.id
 
-    return await cart_service.get_summary(user_id)
+    return await cart_service.get_summary(user_id, session)
 
 @cart_router.get("/item", response_model=CartReadSchema, status_code=status.HTTP_200_OK, dependencies=[role_checker])
 async def get_cart_items(current_user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)) -> CartReadSchema:
     user_id = current_user.id
 
-    cart = await cart_service.get_cart(user_id)
+    cart = await cart_service.get_cart(user_id, session)
     return cart
 
 @cart_router.post("/items", response_model=CartReadSchema, status_code=status.HTTP_201_CREATED, dependencies=[role_checker])
@@ -48,7 +48,7 @@ async def update_cart_item(cart_data: CartItemUpdateSchema, current_user: User =
     book_id = cart_data.book_id
     qty = cart_data.quantity
 
-    return await cart_service.update_item(user_id, book_id, qty)
+    return await cart_service.update_item(user_id, book_id, qty, session)
 
 
 @cart_router.post("/items/{item_id}/increment", response_model=CartReadSchema, status_code=status.HTTP_201_CREATED, dependencies=[role_checker])
@@ -56,34 +56,34 @@ async def increment_cart_item(item_id: str, current_user: User = Depends(get_cur
     user_id = current_user.id
     delta = 1
 
-    return await cart_service.change_qty(user_id, item_id, delta)
+    return await cart_service.change_qty(user_id, item_id, delta, session)
 
 @cart_router.post("/items/{item_id}/decrement", response_model=CartReadSchema, status_code=status.HTTP_201_CREATED, dependencies=[role_checker])
 async def decrement_cart_item(item_id: str, current_user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
     user_id = current_user.id
-    delta = 1
+    delta = -1
 
-    return await cart_service.change_qty(user_id, item_id, delta)
+    return await cart_service.change_qty(user_id, item_id, delta, session)
 
 @cart_router.delete("/items/{item_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[role_checker])
 async def remove_cart_item(item_id: str, current_user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
     user_id = current_user.id
 
-    await cart_service.remove_item(user_id, item_id)
+    await cart_service.remove_item(user_id, item_id, session)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@cart_router.delete("/items", status_code=status.HTTP_204_NO_CONTENT, dependencies=[role_checker])
+@cart_router.delete("/delete", status_code=status.HTTP_204_NO_CONTENT, dependencies=[role_checker])
 async def clear_cart(current_user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
     user_id = current_user.id
 
-    await cart_service.clear_cart(user_id)
+    await cart_service.clear_cart(user_id, session)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 @cart_router.post("/validate", response_model=CartValidationResultSchema, dependencies=[role_checker])
 async def validate_cart(current_user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
     user_id = current_user.id
 
-    return await cart_service.validate_cart(user_id)
+    return await cart_service.validate_cart(user_id, session)
 
 
